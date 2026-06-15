@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Corridor Optimizer</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #111827;
+            --bg-card-hover: #1f2937;
+            --border: #374151;
+            --border-focus: #6366f1;
+            
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --primary-hover: #4f46e5;
+            
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+            --text-dark: #6b7280;
+            
+            --emerald: #10b981;
+            --rose: #f43f5e;
+            --amber: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            background: linear-gradient(135deg, var(--primary), #a855f7);
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1.2rem;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            background: linear-gradient(to right, #ffffff, #d1d5db);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .badge {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--emerald);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .badge::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: var(--emerald);
+            border-radius: 50%;
+            animation: pulse-dot 1.5s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.6; }
+        }
+
+        .docs-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .docs-link:hover {
+            color: var(--text-main);
+            background-color: var(--border);
+        }
+
+        /* Layout Container */
+        .app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Sidebar styling */
+        .sidebar {
+            width: 460px;
+            background-color: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            z-index: 5;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar-section {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+
+        .form-group:last-of-type {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 0.85rem;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background-color: rgba(17, 24, 39, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem 0.75rem 2.25rem;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        /* Quick Suggestions */
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .suggestion-btn {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.35rem 0.7rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggestion-btn:hover {
+            background-color: var(--border);
+            color: var(--text-main);
+            border-color: var(--text-muted);
+        }
+
+        /* Primary Button */
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), #818cf8);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.85rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .btn-submit:active {
+            transform: translateY(1px);
+        }
+
+        .btn-submit:disabled {
+            background: var(--border);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            color: var(--text-dark);
+        }
+
+        /* Specs card */
+        .specs-panel {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .spec-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .spec-label {
+            font-size: 0.7rem;
+            color: var(--text-dark);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .spec-value {
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Results / Empty States */
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .empty-state {
+            padding: 3rem 1.5rem;
+            text-align: center;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            gap: 1rem;
+        }
+
+        .empty-icon {
+            color: var(--text-dark);
+            width: 48px;
+            height: 48px;
+        }
+
+        .empty-text {
+            font-size: 0.9rem;
+            max-width: 280px;
+            line-height: 1.5;
+        }
+
+        /* Summary Dashboard Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        .metric-card {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card.full-width {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.05));
+            border-color: rgba(99, 102, 241, 0.2);
+        }
+
+        .metric-icon-svg {
+            position: absolute;
+            right: -8px;
+            bottom: -8px;
+            width: 72px;
+            height: 72px;
+            color: rgba(255, 255, 255, 0.03);
+            pointer-events: none;
+            transition: color 0.3s ease;
+        }
+
+        .metric-card:hover .metric-icon-svg {
+            color: rgba(99, 102, 241, 0.08);
+        }
+
+        .metric-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 1.35rem;
+            font-weight: 800;
+            margin-top: 0.25rem;
+            color: var(--text-main);
+        }
+
+        .metric-card.full-width .metric-value {
+            color: #c084fc;
+        }
+
+        /* Timeline / Stop List */
+        .timeline-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            animation: slideIn 0.4s ease-out forwards;
+        }
+
+        .timeline {
+            position: relative;
+            border-left: 2px solid var(--border);
+            margin-left: 0.75rem;
+            padding-left: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .timeline-node {
+            position: relative;
+        }
+
+        .timeline-bullet {
+            position: absolute;
+            left: calc(-1.5rem - 7px);
+            top: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--border);
+            border: 2px solid var(--bg-card);
+            z-index: 2;
+        }
+
+        .timeline-node.start .timeline-bullet {
+            background-color: var(--emerald);
+            box-shadow: 0 0 8px var(--emerald);
+        }
+
+        .timeline-node.finish .timeline-bullet {
+            background-color: var(--rose);
+            box-shadow: 0 0 8px var(--rose);
+        }
+
+        .timeline-node.stop .timeline-bullet {
+            background-color: var(--amber);
+            box-shadow: 0 0 8px var(--amber);
+            width: 14px;
+            height: 14px;
+            left: calc(-1.5rem - 8px);
+        }
+
+        .node-meta {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .node-dist {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        .node-card {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .node-card:hover {
+            background-color: var(--bg-card-hover);
+            border-color: var(--text-dark);
+            transform: translateX(4px);
+        }
+
+        .node-card.active {
+            border-color: var(--primary);
+            background-color: rgba(99, 102, 241, 0.05);
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+        }
+
+        .node-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+        }
+
+        .node-addr {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.6rem;
+        }
+
+        .node-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 0.6rem;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-dark);
+        }
+
+        /* Map styling */
+        .map-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background-color: #0b0f19; /* placeholder color before loading */
+        }
+
+        /* Loader Overlay */
+        .loader-overlay {
+            position: absolute;
+            inset: 0;
+            background-color: rgba(11, 15, 25, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            gap: 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .loader-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .spinner-container {
+            position: relative;
+            width: 70px;
+            height: 70px;
+        }
+
+        .spinner-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid transparent;
+            border-top-color: var(--primary);
+            animation: spin 1s linear infinite;
+        }
+
+        .spinner-ring-inner {
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            top: 10%;
+            left: 10%;
+            border-radius: 50%;
+            border: 4px solid transparent;
+            border-top-color: #a855f7;
+            animation: spin-reverse 1.5s linear infinite;
+        }
+
+        .spinner-core {
+            position: absolute;
+            width: 40%;
+            height: 40%;
+            top: 30%;
+            left: 30%;
+            border-radius: 50%;
+            background-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary);
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes spin-reverse {
+            to { transform: rotate(-360deg); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+
+        .loader-text {
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: var(--text-main);
+            animation: text-pulse 1.5s infinite;
+        }
+
+        @keyframes text-pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* Custom Leaflet Tooltip & Popup styling */
+        .leaflet-popup-content-wrapper {
+            background-color: var(--bg-card) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border);
+            border-radius: 8px !important;
+            padding: 0.25rem !important;
+        }
+
+        .leaflet-popup-tip {
+            background-color: var(--bg-card) !important;
+            border: 1px solid var(--border);
+        }
+
+        .leaflet-popup-close-button {
+            color: var(--text-muted) !important;
+            padding: 4px !important;
+        }
+
+        .map-popup-card {
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .map-popup-title {
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.2rem;
+        }
+
+        .map-popup-desc {
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .map-popup-badge {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--amber);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            padding: 0.1rem 0.35rem;
+            border-radius: 4px;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+        }
+
+        .toast {
+            background-color: #1f2937;
+            border-left: 4px solid var(--rose);
+            color: var(--text-main);
+            padding: 1rem;
+            border-radius: 6px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            animation: toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes toast-in {
+            from { transform: translateX(100%) translateY(-10px); opacity: 0; }
+            to { transform: translateX(0) translateY(0); opacity: 1; }
+        }
+
+        .toast-close {
+            margin-left: auto;
+            cursor: pointer;
+            color: var(--text-muted);
+            border: none;
+            background: none;
+            font-size: 1.1rem;
+        }
+
+        .toast-close:hover {
+            color: var(--text-main);
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-main);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-dark);
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 1024px) {
+            body {
+                height: 100vh;
+                overflow: auto;
+            }
+            
+            .app-container {
+                flex-direction: column;
+                overflow: visible;
+                height: auto;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: none;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                box-shadow: none;
+                overflow-y: visible;
+            }
+            
+            .map-container {
+                height: 50vh;
+                width: 100%;
+                position: sticky;
+                top: 0;
+                z-index: 4;
+            }
+            
+            .timeline-section {
+                max-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h1>Fuel Corridor Optimizer</h1>
+            </div>
+        </div>
+        <div class="header-meta">
+            <div class="badge">Engine Active</div>
+            <a href="/api/docs/" class="docs-link" target="_blank">API Docs</a>
+        </div>
+    </header>
+    
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Form Section -->
+            <div class="sidebar-section">
+                <h2 class="section-title">Compute Fuel Route</h2>
+                
+                <form id="route-form">
+                    <div class="form-group">
+                        <label for="start">Start Location (USA)</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">
+                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                                    <circle cx="12" cy="12" r="4" fill="var(--emerald)"/>
+                                </svg>
+                            </span>
+                            <input type="text" id="start" name="start" required placeholder="e.g. New York, NY" value="Houston, TX">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="finish">Destination (USA)</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">
+                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                                    <path d="M12 8l4 4-4 4M8 12h8" stroke="var(--rose)" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                            </span>
+                            <input type="text" id="finish" name="finish" required placeholder="e.g. Los Angeles, CA" value="Los Angeles, CA">
+                        </div>
+                    </div>
+                    
+                    <div class="suggestions">
+                        <button type="button" class="suggestion-btn" data-start="Houston, TX" data-finish="Dallas, TX">Houston to Dallas</button>
+                        <button type="button" class="suggestion-btn" data-start="New York, NY" data-finish="Los Angeles, CA">New York to Los Angeles</button>
+                        <button type="button" class="suggestion-btn" data-start="Seattle, WA" data-finish="Miami, FL">Seattle to Miami</button>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit" id="btn-submit">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        Optimize Fuel Stops
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Specs Info -->
+            <div class="sidebar-section">
+                <div class="specs-panel">
+                    <div class="spec-item">
+                        <span class="spec-label">Max Vehicle Range</span>
+                        <span class="spec-value">500 Miles</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Fuel Efficiency</span>
+                        <span class="spec-value">10 MPG</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Corridor Buffer</span>
+                        <span class="spec-value">25 Miles</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Dynamic Results -->
+            <div class="results-container" id="results-container">
+                <!-- Empty State Placeholder -->
+                <div class="empty-state" id="empty-state">
+                    <svg class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75h6m-6 4h6m-2.25 4h.008v.008H13.5V14.75zm2.25 2.25H9M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008z"/>
+                    </svg>
+                    <p class="empty-text">Enter your start and finish locations above to calculate the most cost-effective fueling strategy.</p>
+                </div>
+                
+                <!-- Results View (Hidden Initially) -->
+                <div id="results-content" style="display: none;">
+                    <div class="sidebar-section">
+                        <h3 class="section-title">Corridor Summary</h3>
+                        
+                        <div class="metrics-grid">
+                            <div class="metric-card full-width">
+                                <span class="metric-title">Total Fuel Cost</span>
+                                <span class="metric-value" id="res-total-cost">$0.00</span>
+                                <svg class="metric-icon-svg" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                </svg>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-title">Stops Required</span>
+                                <span class="metric-value" id="res-stops">0</span>
+                                <svg class="metric-icon-svg" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.25 18.25V9a2.25 2.25 0 0 0-2.25-2.25H4.5A2.25 2.25 0 0 0 2.25 9v9.25m16 0A2.25 2.25 0 0 0 20.5 16v-4.5m-2.25 6.75h3.25m-3.25-6.75a2.25 2.25 0 0 1 2.25-2.25h.5a2.25 2.25 0 0 1 2.25 2.25v3.25m-15-6.75h8.5m-8.5 3h8.5m-8.5 3h8.5M7 18.25V14.5a1.5 1.5 0 0 1 1.5-1.5h1.5a1.5 1.5 0 0 1 1.5 1.5v3.75" />
+                                </svg>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-title">Total Distance</span>
+                                <span class="metric-value" id="res-distance">0 mi</span>
+                                <svg class="metric-icon-svg" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.446 6.002-3.478a.75.75 0 0 0 .37-.65V5.597a.75.75 0 0 0-.112-.397.75.75 0 0 0-.258-.258l-6-3.48a.75.75 0 0 0-.766 0l-6 3.48a.75.75 0 0 0-.376.65v11.103a.75.75 0 0 0 .112.398.75.75 0 0 0 .258.257l6 3.48a.75.75 0 0 0 .766 0Z" />
+                                </svg>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-title">Total Fuel</span>
+                                <span class="metric-value" id="res-fuel">0 gal</span>
+                                <svg class="metric-icon-svg" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 21.75c-4.97 0-9-4.03-9-9 0-3.8 3.52-8.56 8.35-12.22a1 1 0 0 1 1.3 0c4.83 3.66 8.35 8.42 8.35 12.22 0 4.97-4.03 9-9 9Z" />
+                                </svg>
+                            </div>
+                            <div class="metric-card">
+                                <span class="metric-title">Est. Drive Time</span>
+                                <span class="metric-value" id="res-duration">0 hr</span>
+                                <svg class="metric-icon-svg" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-section">
+                        <h3 class="section-title" id="timeline-title">Route Schedule</h3>
+                        <div class="timeline" id="route-timeline">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Map Panel -->
+        <main class="map-container">
+            <div id="map"></div>
+            
+            <!-- Loader -->
+            <div class="loader-overlay" id="loader">
+                <div class="spinner-container">
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring-inner"></div>
+                    <div class="spinner-core"></div>
+                </div>
+                <div class="loader-text" id="loader-status">Geocoding endpoints...</div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Toast Notifications Area -->
+    <div class="toast-container" id="toast-container"></div>
+    
+    <!-- Leaflet JS Library -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        // App State
+        let map;
+        let routeLayer;
+        let markers = [];
+        let fuelStopsData = [];
+
+        // Initialize Map
+        function initMap() {
+            // Center map on USA
+            map = L.map('map', {
+                zoomControl: false
+            }).setView([37.0902, -95.7129], 4);
+            
+            // Add custom zoom control to bottom right
+            L.control.zoom({
+                position: 'bottomright'
+            }).addTo(map);
+
+            // Using CartoDB Positron Dark Matter tile layer for gorgeous dark maps
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(map);
+        }
+
+        // Add CSS for active markers
+        const startMarkerHtml = `
+            <div style="background-color: var(--emerald); width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid white; box-shadow: 0 0 10px var(--emerald);"></div>
+        `;
+        const finishMarkerHtml = `
+            <div style="background-color: var(--rose); width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid white; box-shadow: 0 0 10px var(--rose);"></div>
+        `;
+        const stationMarkerHtml = `
+            <div style="background-color: var(--amber); width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid white; box-shadow: 0 0 8px var(--amber); display: flex; align-items: center; justify-content: center;">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 22V2a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v20"></path>
+                    <path d="M17 12h5v6"></path>
+                    <path d="M7 6h6"></path>
+                    <path d="M7 10h6"></path>
+                </svg>
+            </div>
+        `;
+
+        // Clear existing map layers
+        function clearMap() {
+            if (routeLayer) {
+                map.removeLayer(routeLayer);
+            }
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = type === 'error' ? 'var(--rose)' : 'var(--emerald)';
+            
+            toast.innerHTML = `
+                <div style="font-size: 0.85rem; font-weight: 500;">${message}</div>
+                <button class="toast-close">&times;</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                toast.remove();
+            });
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(50px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 6000);
+        }
+
+        // Fetch optimized route from API
+        async function getOptimizedRoute(start, finish) {
+            const loader = document.getElementById('loader');
+            const loaderStatus = document.getElementById('loader-status');
+            const btnSubmit = document.getElementById('btn-submit');
+            
+            loader.classList.add('active');
+            btnSubmit.disabled = true;
+            
+            // Progressive status updates
+            loaderStatus.innerText = "Geocoding locations...";
+            
+            try {
+                // We'll post to our internal Django REST endpoint
+                const response = await fetch('/api/v1/route/optimize/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ start, finish })
+                });
+
+                if (response.status === 422) {
+                    const err = await response.json();
+                    throw new Error(err.message || "Geocoding or Routing failed. Check input locations.");
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Server returned status ${response.status}`);
+                }
+
+                loaderStatus.innerText = "Plotting coordinates...";
+                const data = await response.json();
+                
+                renderResult(data);
+                showToast("Optimal fuel stops calculated successfully!", "success");
+            } catch (error) {
+                console.error(error);
+                showToast(error.message || "An unexpected error occurred.");
+            } finally {
+                loader.classList.remove('active');
+                btnSubmit.disabled = false;
+            }
+        }
+
+        // Helper to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Render response data onto map and sidebar
+        function renderResult(data) {
+            clearMap();
+            
+            const origin = data.origin;
+            const dest = data.destination;
+            const summary = data.summary;
+            const stops = data.fuel_stops;
+            const geom = data.route;
+
+            // 1. Render metrics in sidebar
+            document.getElementById('res-total-cost').innerText = `$${summary.total_fuel_cost.toFixed(2)}`;
+            document.getElementById('res-stops').innerText = summary.number_of_stops;
+            document.getElementById('res-distance').innerText = `${summary.total_distance_miles.toFixed(1)} mi`;
+            document.getElementById('res-fuel').innerText = `${summary.total_fuel_gallons.toFixed(1)} gal`;
+            document.getElementById('res-duration').innerText = `${summary.total_duration_hours.toFixed(1)} hrs`;
+
+            // 2. Draw GeoJSON route line
+            // Leaflet expects [lat, lon] for drawing standard polylines, but GeoJSON stores coordinates as [lon, lat]
+            // L.geoJSON handles GeoJSON format automatically!
+            routeLayer = L.geoJSON(geom, {
+                style: {
+                    color: '#6366f1',
+                    weight: 5,
+                    opacity: 0.8,
+                    lineJoin: 'round'
+                }
+            }).addTo(map);
+
+            // 3. Draw origin and destination markers
+            const startIcon = L.divIcon({
+                html: startMarkerHtml,
+                className: 'custom-leaflet-marker',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+            const finishIcon = L.divIcon({
+                html: finishMarkerHtml,
+                className: 'custom-leaflet-marker',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+
+            const startMarker = L.marker([origin.latitude, origin.longitude], { icon: startIcon })
+                .bindPopup(`<div class="map-popup-card"><div class="map-popup-title">Start Point</div><div class="map-popup-desc">${origin.name}</div></div>`)
+                .addTo(map);
+            
+            const finishMarker = L.marker([dest.latitude, dest.longitude], { icon: finishIcon })
+                .bindPopup(`<div class="map-popup-card"><div class="map-popup-title">Destination</div><div class="map-popup-desc">${dest.name}</div></div>`)
+                .addTo(map);
+
+            markers.push(startMarker, finishMarker);
+
+            // 4. Create markers for each fuel stop
+            const stopIcon = L.divIcon({
+                html: stationMarkerHtml,
+                className: 'custom-leaflet-marker-station',
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+            });
+
+            stops.forEach((stop, index) => {
+                const stopMarker = L.marker([stop.latitude, stop.longitude], { icon: stopIcon })
+                    .bindPopup(`
+                        <div class="map-popup-card">
+                            <div class="map-popup-title">Stop #${index + 1}: ${stop.station_name}</div>
+                            <div class="map-popup-desc">${stop.address}, ${stop.city}, ${stop.state}</div>
+                            <div style="margin-top: 0.35rem; display: flex; gap: 0.5rem; align-items: center;">
+                                <span class="map-popup-badge">$${stop.retail_price.toFixed(3)}/gal</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">Fill: ${stop.gallons_needed.toFixed(1)} gal</span>
+                            </div>
+                        </div>
+                    `)
+                    .addTo(map);
+
+                // Open timeline card when marker is clicked
+                stopMarker.on('click', () => {
+                    highlightStopInTimeline(stop.station_id);
+                });
+                
+                markers.push(stopMarker);
+                // Keep track of internal map ID
+                stop.markerLeafletId = stopMarker._leaflet_id;
+            });
+
+            // 5. Fit map bounds to show entire route with some padding
+            map.fitBounds(routeLayer.getBounds(), {
+                padding: [50, 50]
+            });
+
+            // 6. Build timeline in sidebar
+            buildTimelineUI(origin, dest, stops);
+
+            // Toggle screens
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('results-content').style.display = 'block';
+        }
+
+        // Build HTML for the route timeline
+        function buildTimelineUI(origin, dest, stops) {
+            const container = document.getElementById('route-timeline');
+            container.innerHTML = '';
+
+            // Add Start Node
+            const startHtml = `
+                <div class="timeline-node start">
+                    <div class="timeline-bullet"></div>
+                    <div class="node-meta">
+                        <span>DEPARTURE</span>
+                        <span class="node-dist">0.0 mi</span>
+                    </div>
+                    <div class="node-card" onclick="panToCoords(${origin.latitude}, ${origin.longitude}, 'start')">
+                        <div class="node-name">${origin.name.split(',')[0]}</div>
+                        <div class="node-addr">${origin.name}</div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', startHtml);
+
+            // Add Stops
+            stops.forEach((stop, index) => {
+                const stopHtml = `
+                    <div class="timeline-node stop" id="timeline-stop-${stop.station_id}">
+                        <div class="timeline-bullet"></div>
+                        <div class="node-meta">
+                            <span>FUEL STOP #${index + 1}</span>
+                            <span class="node-dist">${stop.distance_from_start_miles.toFixed(1)} mi</span>
+                        </div>
+                        <div class="node-card" onclick="panToStop(${stop.latitude}, ${stop.longitude}, ${stop.markerLeafletId}, ${stop.station_id})">
+                            <div class="node-name">${stop.station_name}</div>
+                            <div class="node-addr">${stop.address}, ${stop.city}, ${stop.state}</div>
+                            <div class="node-stats">
+                                <div class="stat-item">
+                                    <div class="stat-value">$${stop.retail_price.toFixed(3)}</div>
+                                    <div class="stat-label">Price/Gal</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${stop.gallons_needed.toFixed(1)} gal</div>
+                                    <div class="stat-label">To Fill</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value" style="color: var(--amber)">$${stop.cost.toFixed(2)}</div>
+                                    <div class="stat-label">Total Cost</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', stopHtml);
+            });
+
+            // Add Destination Node
+            const destHtml = `
+                <div class="timeline-node finish">
+                    <div class="timeline-bullet"></div>
+                    <div class="node-meta">
+                        <span>DESTINATION</span>
+                    </div>
+                    <div class="node-card" onclick="panToCoords(${dest.latitude}, ${dest.longitude}, 'finish')">
+                        <div class="node-name">${dest.name.split(',')[0]}</div>
+                        <div class="node-addr">${dest.name}</div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', destHtml);
+        }
+
+        // Action when clicking timeline stop
+        function panToStop(lat, lon, leafletId, stationId) {
+            map.setView([lat, lon], 12);
+            // Find marker and open popup
+            const marker = markers.find(m => m._leaflet_id === leafletId);
+            if (marker) {
+                marker.openPopup();
+            }
+            highlightStopInTimeline(stationId);
+        }
+
+        function panToCoords(lat, lon, type) {
+            map.setView([lat, lon], 11);
+            // Optional popup triggers
+        }
+
+        function highlightStopInTimeline(stationId) {
+            // Remove active class from all node cards
+            document.querySelectorAll('.node-card').forEach(c => c.classList.remove('active'));
+            
+            // Add active to selected
+            const container = document.getElementById(`timeline-stop-${stationId}`);
+            if (container) {
+                const card = container.querySelector('.node-card');
+                if (card) {
+                    card.classList.add('active');
+                    // Scroll to the card smoothly
+                    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('route-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const startVal = document.getElementById('start').value;
+            const finishVal = document.getElementById('finish').value;
+            getOptimizedRoute(startVal, finishVal);
+        });
+
+        // Suggesstion Buttons click
+        document.querySelectorAll('.suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const start = this.getAttribute('data-start');
+                const finish = this.getAttribute('data-finish');
+                
+                document.getElementById('start').value = start;
+                document.getElementById('finish').value = finish;
+                
+                getOptimizedRoute(start, finish);
+            });
+        });
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initMap();
+        });
+    </script>
+</body>
+</html>

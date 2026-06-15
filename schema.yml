@@ -1,0 +1,360 @@
+openapi: 3.0.3
+info:
+  title: Fuel Route Optimizer API
+  version: 1.0.0
+  description: REST API that computes the most cost-effective fuel stops along a route
+    between two locations in the USA. Returns the route geometry, optimal fuel stations
+    ranked by price, and total fuel expenditure assuming a vehicle with 500-mile range
+    at 10 mpg.
+  contact:
+    name: API Support
+    email: support@fueloptimizer.dev
+  license:
+    name: MIT
+paths:
+  /api/v1/health/:
+    get:
+      operationId: v1_health_retrieve
+      description: Returns service health status and data statistics.
+      summary: Health check
+      tags:
+      - Health
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: Service is healthy.
+  /api/v1/route/optimize/:
+    post:
+      operationId: v1_route_optimize_create
+      description: |-
+        Given a start and finish location within the USA, computes the driving route and identifies the most cost-effective fuel stations along the way. The vehicle is assumed to have a maximum range of 500 miles and achieves 10 miles per gallon.
+
+        **How it works:**
+        1. Geocodes start/finish locations to coordinates
+        2. Computes the driving route via OSRM (single API call)
+        3. Runs the fuel optimization algorithm on the route geometry
+        4. Returns fuel stops ranked by price with cost breakdown
+
+        **Response includes:**
+        - Route summary (distance, duration, total fuel cost)
+        - Ordered list of recommended fuel stops
+        - GeoJSON route geometry for map rendering
+        - Resolved origin/destination coordinates
+      summary: Optimize fuel stops along a route
+      tags:
+      - Route Optimization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteRequestRequest'
+            examples:
+              Cross-countryRoute:
+                value:
+                  start: New York, NY
+                  finish: Los Angeles, CA
+                summary: Cross-country route
+              RegionalRoute:
+                value:
+                  start: Houston, TX
+                  finish: Dallas, TX
+                summary: Regional route
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RouteRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RouteRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+          description: Successfully computed optimal fuel route.
+        '400':
+          description: Invalid input parameters.
+        '422':
+          description: Could not geocode or route the given locations.
+        '503':
+          description: External service (OSRM/Nominatim) unavailable.
+  /api/v1/stations/:
+    get:
+      operationId: v1_stations_retrieve
+      description: Returns fuel stations from the dataset with optional filters. Results
+        are ordered by retail price (ascending).
+      summary: List fuel stations
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 50
+        description: 'Number of results to return (default: 50, max: 500).'
+      - in: query
+        name: max_price
+        schema:
+          type: number
+          format: double
+        description: Maximum retail price filter.
+      - in: query
+        name: min_price
+        schema:
+          type: number
+          format: double
+        description: Minimum retail price filter.
+      - in: query
+        name: state
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 2
+        description: Filter by US state code (e.g. 'TX', 'CA').
+      tags:
+      - Fuel Stations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FuelStationResponse'
+          description: List of fuel stations.
+components:
+  schemas:
+    FuelStationResponse:
+      type: object
+      description: Serializes a fuel station for listing endpoints.
+      properties:
+        id:
+          type: integer
+        opis_id:
+          type: integer
+        name:
+          type: string
+          default: ''
+        address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        retail_price:
+          type: number
+          format: double
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+      required:
+      - address
+      - city
+      - id
+      - latitude
+      - longitude
+      - opis_id
+      - retail_price
+      - state
+    FuelStop:
+      type: object
+      description: Serializes a single fuel stop along the route.
+      properties:
+        station_id:
+          type: integer
+          description: Internal station ID.
+        station_name:
+          type: string
+          description: Name of the fuel station.
+        address:
+          type: string
+          description: Station address / highway exit info.
+        city:
+          type: string
+          description: City of the station.
+        state:
+          type: string
+          description: Two-letter US state code.
+        latitude:
+          type: number
+          format: double
+          description: Station latitude (WGS84).
+        longitude:
+          type: number
+          format: double
+          description: Station longitude (WGS84).
+        retail_price:
+          type: number
+          format: double
+          description: Fuel price per gallon in USD.
+        distance_from_start_miles:
+          type: number
+          format: double
+          description: Distance from the route start to this stop in miles.
+        gallons_needed:
+          type: number
+          format: double
+          description: Gallons of fuel to purchase at this stop.
+        cost:
+          type: number
+          format: double
+          description: Total cost at this stop in USD.
+      required:
+      - address
+      - city
+      - cost
+      - distance_from_start_miles
+      - gallons_needed
+      - latitude
+      - longitude
+      - retail_price
+      - state
+      - station_id
+      - station_name
+    RouteEndpoint:
+      type: object
+      description: Serializes a route endpoint (origin or destination).
+      properties:
+        name:
+          type: string
+          description: Location name as resolved by geocoder.
+        latitude:
+          type: number
+          format: double
+          description: Latitude.
+        longitude:
+          type: number
+          format: double
+          description: Longitude.
+      required:
+      - latitude
+      - longitude
+      - name
+    RouteRequestRequest:
+      type: object
+      description: |-
+        Validates the input for a route optimization request.
+
+        Both `start` and `finish` accept free-form location strings
+        (e.g. "New York, NY", "Los Angeles, CA", "1600 Pennsylvania Ave, Washington DC").
+      properties:
+        start:
+          type: string
+          minLength: 1
+          description: 'Starting location (city/state, address, or landmark). Must
+            be within the USA. Example: ''New York, NY'''
+          maxLength: 500
+        finish:
+          type: string
+          minLength: 1
+          description: 'Destination location (city/state, address, or landmark). Must
+            be within the USA. Example: ''Los Angeles, CA'''
+          maxLength: 500
+      required:
+      - finish
+      - start
+    RouteResponse:
+      type: object
+      description: |-
+        Complete response for a route optimization request.
+
+        Includes route summary, fuel stops, route geometry (for map rendering),
+        and endpoint details.
+      properties:
+        summary:
+          allOf:
+          - $ref: '#/components/schemas/RouteSummary'
+          description: High-level route and cost summary.
+        origin:
+          allOf:
+          - $ref: '#/components/schemas/RouteEndpoint'
+          description: Resolved origin location.
+        destination:
+          allOf:
+          - $ref: '#/components/schemas/RouteEndpoint'
+          description: Resolved destination location.
+        fuel_stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/FuelStop'
+          description: Ordered list of recommended fuel stops (cheapest options along
+            route).
+        route:
+          type: object
+          additionalProperties: {}
+          description: GeoJSON LineString geometry of the route. Can be rendered directly
+            on a map.
+      required:
+      - destination
+      - fuel_stops
+      - origin
+      - route
+      - summary
+    RouteSummary:
+      type: object
+      description: High-level summary of the optimized route.
+      properties:
+        total_distance_miles:
+          type: number
+          format: double
+          description: Total driving distance in miles.
+        total_duration_hours:
+          type: number
+          format: double
+          description: Estimated driving time in hours.
+        total_fuel_gallons:
+          type: number
+          format: double
+          description: Total fuel consumption in gallons (at specified MPG).
+        total_fuel_cost:
+          type: number
+          format: double
+          description: Total fuel expenditure in USD.
+        number_of_stops:
+          type: integer
+          description: Number of recommended fuel stops.
+        vehicle_range_miles:
+          type: integer
+          description: Vehicle maximum range on a full tank.
+        vehicle_mpg:
+          type: integer
+          description: Vehicle fuel efficiency in miles per gallon.
+      required:
+      - number_of_stops
+      - total_distance_miles
+      - total_duration_hours
+      - total_fuel_cost
+      - total_fuel_gallons
+      - vehicle_mpg
+      - vehicle_range_miles
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+tags:
+- name: Route Optimization
+  description: Endpoints for computing optimal fuel routes.
+- name: Fuel Stations
+  description: Endpoints for querying fuel station data.
+- name: Health
+  description: Service health and readiness checks.

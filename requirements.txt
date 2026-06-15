@@ -1,0 +1,13 @@
+# Core
+Django==5.2.15
+djangorestframework==3.17.1
+django-cors-headers==4.9.0
+
+# API Documentation
+drf-spectacular==0.29.0
+
+# HTTP Client
+requests==2.32.3
+
+# Configuration
+python-decouple==3.8

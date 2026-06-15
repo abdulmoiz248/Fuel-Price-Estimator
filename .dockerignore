@@ -1,0 +1,22 @@
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Python cache files
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Local database and system files
+db.sqlite3-journal
+.idea/
+.vscode/
+.git/
+.gitignore
+
+# PDFs and documentation
+*.pdf
+README.md
